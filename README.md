@@ -1,3 +1,11 @@
+## My notes/Changes made to official implementation
+* Saved .pth file in main folder (git ignored)
+* Created checkpoints folder and saved best.pkl in (git ignored)
+* timm needs to be installed from conda-forge not pip
+* Added workaround code in test.py to allow running with a single GPU
+* Code currently requires images are 6000x4000
+* Only tried the test code so far, saves results to output_img
+
 ##  A Data-Centric Solution to NonHomogeneous Dehazing via Vision Transformer
 
 This is the official PyTorch implementation of A Data-Centric Solution to NonHomogeneous Dehazing via Vision Transformer.  
