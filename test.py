@@ -119,13 +119,34 @@ else:
 val_loader = DataLoader(dataset=val_dataset, batch_size=1, shuffle=False, num_workers=0)
 
 # --- Multi-GPU --- #
+# MyEnsembleNet = MyEnsembleNet.to(device)
+# MyEnsembleNet= torch.nn.DataParallel(MyEnsembleNet, device_ids=device_ids)
+
+
+
+# # --- Load the network weight --- #
+# MyEnsembleNet.load_state_dict(torch.load(args.ckpt_path))              
+
+################## Code by Caitlin to get around parallel GPU requirement.
+# Load checkpoint
+from collections import OrderedDict
+checkpoint = torch.load(args.ckpt_path, map_location=device)  # Ensure checkpoint is loaded on correct device
+
+if "model_state_dict" in checkpoint:
+    state_dict = checkpoint["model_state_dict"]  # Extract the actual state dict
+else:
+    state_dict = checkpoint  # Direct state_dict case
+
+# Remove "module." prefix if it exists
+new_state_dict = OrderedDict()
+for k, v in state_dict.items():
+    new_key = k.replace("module.", "") if k.startswith("module.") else k
+    new_state_dict[new_key] = v
+
+# Load state dict into model
+MyEnsembleNet.load_state_dict(new_state_dict)
 MyEnsembleNet = MyEnsembleNet.to(device)
-MyEnsembleNet= torch.nn.DataParallel(MyEnsembleNet, device_ids=device_ids)
-
-
-# --- Load the network weight --- #
-MyEnsembleNet.load_state_dict(torch.load(args.ckpt_path))              
-
+##################
 
 # --- Strat testing --- #
 with torch.no_grad():
