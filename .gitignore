@@ -5,3 +5,13 @@
 .jpeg
 swinv2_base_patch4_window8_256.pth
 checkpoints/best.pkl
+output_img/test/best_result/41.png
+output_img/test/best_result/42.png
+output_img/test/best_result/43.png
+output_img/test/best_result/44.png
+output_img/test/best_result/45.png
+output_img/test/best_result/46.png
+output_img/test/best_result/47.png
+output_img/test/best_result/48.png
+output_img/test/best_result/49.png
+output_img/test/best_result/50.png
