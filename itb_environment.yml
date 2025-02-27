@@ -1,0 +1,21 @@
+name: venv_ITBDehaze
+channels:
+  - pytorch
+  - defaults
+  - conda-forge # needs to be listed last to ensure cuda-enabled versions installed
+dependencies:
+  - python=3.7
+  - pip
+  - cudatoolkit=11.6
+  - pytorch=1.12.1=py3.7_cuda11.6_cudnn8.3.2_0
+  - torchaudio=0.12.1=py37_cu116
+  - torchvision=0.13.1=py37_cu116
+  - timm=0.6.13
+  - pip:
+      - opencv-python
+      - scikit-image
+      - tensorboardx
+      - yacs
+prefix: /home/caitlinhaddow/anaconda3/envs/venv_ITBDehaze
+
+# create environment with: conda env create -f itb_environment.yml
