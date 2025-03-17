@@ -6,6 +6,12 @@
 * Code currently requires images are 6000x4000
 * Only tried the test code so far, saves results to output_img
 
+Training
+* Paper trained with 2 12GB GPUs
+
+Testing
+* For best results needs 40GB of GPUs with cropping = 4, if less available use cropping = 6
+
 ##  A Data-Centric Solution to NonHomogeneous Dehazing via Vision Transformer
 
 This is the official PyTorch implementation of A Data-Centric Solution to NonHomogeneous Dehazing via Vision Transformer.  

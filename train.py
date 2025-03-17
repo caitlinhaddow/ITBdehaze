@@ -1,14 +1,14 @@
 import torch
 import time
 import argparse
-from model import fusion_refine,Discriminator
+from model import fusion_refine, Discriminator
 from train_dataset import dehaze_train_dataset
 from test_dataset import dehaze_test_dataset
 from val_dataset import dehaze_val_dataset
 from torch.utils.data import DataLoader
 import os
 from torchvision.models import vgg16
-from utils_test import to_psnr,to_ssim_skimage, cropping, test_generate
+from utils_test import to_psnr, to_ssim_skimage, cropping, test_generate
 from tensorboardX import SummaryWriter
 import torch.nn.functional as F
 from perceptual import LossNetwork
@@ -27,7 +27,7 @@ from timm.scheduler.cosine_lr import CosineLRScheduler
 parser = argparse.ArgumentParser(description='RCAN-Dehaze-teacher')
 parser.add_argument('-learning_rate', help='Set the learning rate', default=1e-4, type=float)
 parser.add_argument('-train_batch_size', help='Set the training batch size', default=20, type=int)
-parser.add_argument('-train_epoch', help='Set the training epoch', default=10000, type=int)
+parser.add_argument('-train_epoch', help='Set the training epoch', default=10005, type=int)
 parser.add_argument('--train_dataset', type=str, default='')
 parser.add_argument('--data_dir', type=str, default='')
 parser.add_argument('--model_save_dir', type=str, default='./output_result')
@@ -181,9 +181,9 @@ msssim_loss = msssim
 
 #--- Load the network weight for finetuning--- #
 if args.finetune:
-	try:
-	    MyEnsembleNet.load_state_dict(torch.load('epoch100000.pkl')))  # load finetune model
-	    print('--- weight loaded ---')
+    try:
+	    MyEnsembleNet.load_state_dict(torch.load('epoch100000.pkl'))  # load finetune model
+        print('--- weight loaded ---')
 	except:
 	    print('--- no weight loaded ---')
 
