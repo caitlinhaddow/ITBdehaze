@@ -5,11 +5,11 @@
 # Written by Ze Liu
 # --------------------------------------------------------
 
-from .swin_transformer import SwinTransformer
-from .swin_transformer_v2 import SwinTransformerV2
-from .swin_transformer_moe import SwinTransformerMoE
-from .swin_mlp import SwinMLP
-from .simmim import build_simmim
+# from .swin_transformer import SwinTransformer
+# from .swin_transformer_v2 import SwinTransformerV2
+# from .swin_transformer_moe import SwinTransformerMoE
+# from .swin_mlp import SwinMLP
+# from .simmim import build_simmim
 
 
 def build_model(config, is_pretrain=False):
@@ -28,10 +28,12 @@ def build_model(config, is_pretrain=False):
         layernorm = nn.LayerNorm
 
     if is_pretrain:
+        from .simmim import build_simmim
         model = build_simmim(config)
         return model
 
     if model_type == 'swin':
+        from .swin_transformer import SwinTransformer
         model = SwinTransformer(img_size=config.DATA.IMG_SIZE,
                                 patch_size=config.MODEL.SWIN.PATCH_SIZE,
                                 in_chans=config.MODEL.SWIN.IN_CHANS,
@@ -51,6 +53,7 @@ def build_model(config, is_pretrain=False):
                                 use_checkpoint=config.TRAIN.USE_CHECKPOINT,
                                 fused_window_process=config.FUSED_WINDOW_PROCESS)
     elif model_type == 'swinv2':
+        from .swin_transformer_v2 import SwinTransformerV2
         model = SwinTransformerV2(img_size=config.DATA.IMG_SIZE,
                                   patch_size=config.MODEL.SWINV2.PATCH_SIZE,
                                   in_chans=config.MODEL.SWINV2.IN_CHANS,
@@ -68,6 +71,7 @@ def build_model(config, is_pretrain=False):
                                   use_checkpoint=config.TRAIN.USE_CHECKPOINT,
                                   pretrained_window_sizes=config.MODEL.SWINV2.PRETRAINED_WINDOW_SIZES)
     elif model_type == 'swin_moe':
+        from .swin_transformer_moe import SwinTransformerMoE
         model = SwinTransformerMoE(img_size=config.DATA.IMG_SIZE,
                                    patch_size=config.MODEL.SWIN_MOE.PATCH_SIZE,
                                    in_chans=config.MODEL.SWIN_MOE.IN_CHANS,
@@ -101,6 +105,7 @@ def build_model(config, is_pretrain=False):
                                    moe_drop=config.MODEL.SWIN_MOE.MOE_DROP,
                                    aux_loss_weight=config.MODEL.SWIN_MOE.AUX_LOSS_WEIGHT)
     elif model_type == 'swin_mlp':
+        from .swin_mlp import SwinMLP
         model = SwinMLP(img_size=config.DATA.IMG_SIZE,
                         patch_size=config.MODEL.SWIN_MLP.PATCH_SIZE,
                         in_chans=config.MODEL.SWIN_MLP.IN_CHANS,

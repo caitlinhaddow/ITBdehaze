@@ -1,19 +1,20 @@
 import torch
 import time
 import argparse
-from model import fusion_refine, Discriminator
-from train_dataset import dehaze_train_dataset
-from test_dataset import dehaze_test_dataset
+from model import fusion_refine #, Discriminator
+# from train_dataset import dehaze_train_dataset
+# from test_dataset import dehaze_test_dataset
 from val_dataset import dehaze_val_dataset, dehaze_val_dataset_ohaze
 from torch.utils.data import DataLoader
 import os
-from torchvision.models import vgg16
-from utils_test import to_psnr, to_ssim_skimage, test_generate, image_stick, image_stick_ohaze
-from tensorboardX import SummaryWriter
-import torch.nn.functional as F
-from perceptual import LossNetwork
+# from torchvision.models import vgg16
+# from utils_test import to_psnr, to_ssim_skimage, test_generate, image_stick, image_stick_ohaze
+from utils_test import test_generate, image_stick, image_stick_ohaze
+# from tensorboardX import SummaryWriter
+# import torch.nn.functional as F
+# from perceptual import LossNetwork
 from torchvision.utils import save_image as imwrite
-from pytorch_msssim import msssim
+# from pytorch_msssim import msssim
 
 from config import get_config
 from models import build_model
@@ -122,7 +123,7 @@ if args.hazy_data == "OHAZE_test":
 else:
     val_dataset = dehaze_val_dataset(val_dataset, crop_method=args.cropping)
 
-val_loader = DataLoader(dataset=val_dataset, batch_size=1, shuffle=False, num_workers=0)
+val_loader = DataLoader(dataset=val_dataset, batch_size=1, shuffle=False, num_workers=4, pin_memory=True)
 
 
 if multiple_gpus: 
@@ -180,12 +181,14 @@ else:
 with torch.no_grad():
     img_list = []
     time_list = []
-    MyEnsembleNet.eval()
+
     imsave_dir = output_dir
     if not os.path.exists(imsave_dir):
         os.makedirs(imsave_dir)
         print("Created output directory")
-    for batch_idx, (hazy, vertical) in enumerate(val_loader):   
+        
+    MyEnsembleNet.eval()
+    for batch_idx, (hazy, vertical) in enumerate(tqdm(val_loader)):   
     #for batch_idx, (hazy, vertical, hazy_1, hazy_2, hazy_3,hazy_4, hazy_5, hazy_6) in enumerate(val_loader):
         # print(len(val_loader))
 
@@ -198,7 +201,8 @@ with torch.no_grad():
             for input in hazy:
                 input = input.to(device)
                 img_tensor = MyEnsembleNet(input)
-                img_list.append(img_tensor.cpu())
+                # img_list.append(img_tensor.cpu())
+                img_list.append(img_tensor) # ch add
 
             final_image = image_stick_ohaze(img_list, index, ori_shape)
             assert final_image.shape[-1] == ori_shape[-1]
@@ -231,12 +235,12 @@ with torch.no_grad():
             ##########################################
 
         else:
-            start = time.time()
+            # start = time.time()
 
             img_tensor = test_generate(hazy, vertical, args.cropping, MyEnsembleNet, device)
         
-            end = time.time()
-            time_list.append((end - start))
+            # end = time.time()
+            # time_list.append((end - start))
             img_list.append(img_tensor)
 
 
@@ -247,8 +251,8 @@ with torch.no_grad():
 
             ##########################################
 
-    time_cost = float(sum(time_list) / len(time_list))
-    print('running time per image: ', time_cost)
+    # time_cost = float(sum(time_list) / len(time_list))
+    # print('running time per image: ', time_cost)
                 
 # writer.close()
 

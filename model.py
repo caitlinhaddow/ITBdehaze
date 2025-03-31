@@ -325,7 +325,8 @@ class Enhancer(nn.Module):
         self.conv1040 = nn.Conv2d(20, 1, kernel_size=1, stride=1, padding=0)
 
         self.refine3 = nn.Conv2d(20 + 4, out_channels, kernel_size=3, stride=1, padding=1)
-        self.upsample = F.upsample_nearest
+        # self.upsample = F.upsample_nearest
+        self.upsample = F.interpolate ## ch add
 
         self.batch1 = nn.InstanceNorm2d(100, affine=True)
 

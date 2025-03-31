@@ -9,7 +9,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.checkpoint as checkpoint
-from timm.models.layers import DropPath, to_2tuple, trunc_normal_
+# from timm.models.layers import DropPath, to_2tuple, trunc_normal_
+from timm.layers import DropPath, to_2tuple, trunc_normal_ ## ch change
 import numpy as np
 
 
@@ -42,6 +43,7 @@ def window_partition(x, window_size):
         windows: (num_windows*B, window_size, window_size, C)
     """
     B, H, W, C = x.shape
+    # print(f"---- Window partition B, H, W, C = {x.shape}, window size: {window_size} ------")
     x = x.view(B, H // window_size, window_size, W // window_size, window_size, C)
     windows = x.permute(0, 1, 3, 2, 4, 5).contiguous().view(-1, window_size, window_size, C)
     return windows
@@ -303,6 +305,10 @@ class SwinTransformerBlock(nn.Module):
         #assert L == H * W, "input feature has wrong size"
 
         shortcut = x
+        # print(f"x_size: {x_size}, expected shape before view: B={B}, H={H}, W={W}, C={C}")
+        # print(f"Before reshape: {x.shape}, B={B}, H={H}, W={W}, C={C}")
+
+        # print(f"Before reshape: {x.shape}")
         x = x.view(B, H, W, C)
 
         # cyclic shift
@@ -502,6 +508,7 @@ class PatchEmbed(nn.Module):
         super().__init__()
         img_size = to_2tuple(img_size)
         patch_size = to_2tuple(patch_size)
+        # print(f"----- Patch size: {patch_size} -----")
         patches_resolution = [img_size[0] // patch_size[0], img_size[1] // patch_size[1]]
         self.img_size = img_size
         self.patch_size = patch_size

@@ -41,14 +41,14 @@ class dehaze_train_dataset(Dataset):
             if line!='':
                 self.list_train.append(line)
         #'./NTIRE2021_Train_Hazy/'
-        self.root_hazy=os.path.join(train_dir, 'hazy/')
-        self.root_clean =os.path.join(train_dir, 'clean/')
+        self.root_hazy = os.path.join(train_dir, 'hazy/')
+        self.root_clean = os.path.join(train_dir, 'clean/')
         self.file_len = len(self.list_train)
 
     def __getitem__(self, index, is_train = True):
         if is_train:
             hazy = Image.open(self.root_hazy + self.list_train[index])
-            clean=Image.open(self.root_clean + self.list_train[index])
+            clean = Image.open(self.root_clean + self.list_train[index])
             #crop a patch
             i,j,h,w = transforms.RandomCrop.get_params(hazy, output_size = (256,256))
             hazy_ = TF.crop(hazy, i, j, h, w)
@@ -58,7 +58,7 @@ class dehaze_train_dataset(Dataset):
             hazy_arg, clean_arg = augment(hazy_, clean_)
         hazy = self.transform(hazy_arg)
         clean = self.transform(clean_arg)
-        return hazy,clean
+        return hazy, clean
 
     def __len__(self):
         return self.file_len
