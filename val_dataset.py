@@ -2,7 +2,7 @@ from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms
 import os
-import cv2
+# import cv2
 import torch
 from utils_test import cropping, cropping_ohaze
 
@@ -30,7 +30,8 @@ class dehaze_val_dataset(Dataset):
 
         hazy, vertical = cropping(hazy, self.crop_method)
 
-        return hazy, vertical
+        name = self.list_test[index]
+        return hazy, vertical, name
 
     def __len__(self):
         return self.file_len

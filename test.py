@@ -37,7 +37,7 @@ parser.add_argument('-test_batch_size', help='Set the testing batch size', defau
 parser.add_argument('--vgg_model', default='', type=str, help='load trained model or not')
 parser.add_argument('--imagenet_model', default='', type=str, help='load trained model or not')
 parser.add_argument('--rcan_model', default='', type=str, help='load trained model or not')
-parser.add_argument('--ckpt_path', default='./weights/best.pkl', type=str, help='path to model to be loaded')
+# parser.add_argument('--ckpt_path', default='./weights/best.pkl', type=str, help='path to model to be loaded')
 parser.add_argument('--hazy_data', default='', type=str, help='apply on test data or val data')
 parser.add_argument('--cropping', default='4', type=int, help='crop the 4k*6k image to # of patches for testing') # use 4 for >40GB memory, else use 6
 
@@ -84,16 +84,20 @@ parser.add_argument('--optim', type=str,
                         help='overwrite optimizer if provided, can be adamw/sgd/fused_adam/fused_lamb.')
 
 ########## ---- Start of CH code: Set Variables ---- ##########
+#### -------------------------- SET VARIABLES ----------------------------------------------
+list_weight_files = ["./weights/best.pkl"]   ## original weights
+# list_weight_files = ["2025-03-14_09-43-28_NHNH2_epoch05000.pkl", "2025-03-17_13-42-19_NHNH2RB10_epoch04000.pkl"]  ## SET VARIABLE
+tested_on = "DFire"   ## SET VARIABLE
 
 multiple_gpus = True  ## SET VARIABLE (Code by Caitlin)
-
+#### -------------------------- SET VARIABLES ----------------------------------------------
 ########## ---- End of CH code ---- ##########
 
 args = parser.parse_args()
 
 val_dataset = os.path.join(args.data_dir, args.hazy_data)        
 predict_result = args.predict_result
-test_batch_size=args.test_batch_size
+test_batch_size = args.test_batch_size
 
 # --- output picture and check point --- #
 if not os.path.exists(args.model_save_dir):
@@ -125,136 +129,147 @@ else:
 
 val_loader = DataLoader(dataset=val_dataset, batch_size=1, shuffle=False, num_workers=4, pin_memory=True)
 
+########## ---- Start of CH code: Run tests for multiples weights ---- ##########
 
-if multiple_gpus: 
-    # --- Multi-GPU --- #
-    MyEnsembleNet = MyEnsembleNet.to(device)
-    
-    ########## ---- Start of CH code: To use given pkl file with parallel GPUs ---- ##########
-    checkpoint = torch.load(args.ckpt_path, map_location=device)  # Ensure checkpoint is loaded on correct device
+for weight_file in list_weight_files:
+    weight_name = os.path.splitext(os.path.basename(weight_file))[0]
+    final_output_dir = os.path.join(output_dir, f"{tested_on}_{weight_name}")  # save each set of images in a new directory with the weight name
 
-    if "model_state_dict" in checkpoint:
-        print(f"found model state dict")
-        state_dict = checkpoint["model_state_dict"]  # Extract the actual state dict
-    else:
-        state_dict = checkpoint  # Direct state_dict case
-        print(f"no model state dict")
-
-    # Remove "module." prefix if it exists
-    new_state_dict = OrderedDict()
-    for k, v in state_dict.items():
-        new_key = k.replace("module.", "") if k.startswith("module.") else k
-        new_state_dict[new_key] = v
-
-    # Load state dict into model
-    MyEnsembleNet.load_state_dict(new_state_dict)
+    # weight_file = os.path.join("./weights", weight_file)
     ########## ---- End of CH code ---- ##########
 
-    # Now wrap in DataParallel
-    MyEnsembleNet = torch.nn.DataParallel(MyEnsembleNet, device_ids=device_ids)
-    MyEnsembleNet = MyEnsembleNet.to(device)
-    # --- Load the network weight --- #
-    # MyEnsembleNet.load_state_dict(torch.load(args.ckpt_path))              
-
-else: 
-    ################## Code by Caitlin to get around parallel GPU requirement.
-    # Load checkpoint
-    checkpoint = torch.load(args.ckpt_path, map_location=device)  # Ensure checkpoint is loaded on correct device
-
-    if "model_state_dict" in checkpoint:
-        state_dict = checkpoint["model_state_dict"]  # Extract the actual state dict
-    else:
-        state_dict = checkpoint  # Direct state_dict case
-
-    # Remove "module." prefix if it exists
-    new_state_dict = OrderedDict()
-    for k, v in state_dict.items():
-        new_key = k.replace("module.", "") if k.startswith("module.") else k
-        new_state_dict[new_key] = v
-
-    # Load state dict into model
-    MyEnsembleNet.load_state_dict(new_state_dict)
-    MyEnsembleNet = MyEnsembleNet.to(device)
-    ##################
-
-# --- Strat testing --- #
-with torch.no_grad():
-    img_list = []
-    time_list = []
-
-    imsave_dir = output_dir
-    if not os.path.exists(imsave_dir):
-        os.makedirs(imsave_dir)
-        print("Created output directory")
+    print(f"------- starting ---------")
+    
+    if multiple_gpus: 
+        # --- Multi-GPU --- #
+        MyEnsembleNet = MyEnsembleNet.to(device)
         
-    MyEnsembleNet.eval()
-    for batch_idx, (hazy, vertical) in enumerate(tqdm(val_loader)):   
-    #for batch_idx, (hazy, vertical, hazy_1, hazy_2, hazy_3,hazy_4, hazy_5, hazy_6) in enumerate(val_loader):
-        # print(len(val_loader))
+        ########## ---- Start of CH code: To use given pkl file with parallel GPUs ---- ##########
+        # checkpoint = torch.load(args.ckpt_path, map_location=device)  # Ensure checkpoint is loaded on correct device
+        checkpoint = torch.load(weight_file, map_location=device)  # Ensure checkpoint is loaded on correct device
 
-        # for OHAZE
-        if args.hazy_data == "OHAZE_test":
-            index = vertical[0].to('cpu')
-            ori_shape = vertical[1]
-            img_list = []
-            
-            for input in hazy:
-                input = input.to(device)
-                img_tensor = MyEnsembleNet(input)
-                # img_list.append(img_tensor.cpu())
-                img_list.append(img_tensor) # ch add
-
-            final_image = image_stick_ohaze(img_list, index, ori_shape)
-            assert final_image.shape[-1] == ori_shape[-1]
-            # final_image.shape  ori_shape
-
-            continue
-
-        # Below for NTIRE2023
-        if args.cropping == 4:
-            img_list = []
-            
-            for input in hazy:
-                input = input.to(device)
-                #print(input.size())
-                start = time.time()
-                img_tensor = MyEnsembleNet(input)
-                end = time.time()
-                time_list.append((end - start))
-                img_list.append(img_tensor.cpu())
-        
-            final_image = image_stick(img_list, vertical)
-            one_t = torch.ones_like(final_image[:,0,:,:])
-            one_t = one_t[:, None, :, :]
-            img_t = torch.cat((final_image, one_t) , 1)
-            
-            ######## Code by Caitlin #################
-            name = os.listdir(os.path.join(args.data_dir, args.hazy_data))[batch_idx]
-            imwrite(img_t, os.path.join(output_dir, f"{name}.png"), range=(0, 1))
-
-            ##########################################
-
+        if "model_state_dict" in checkpoint:
+            print(f"found model state dict")
+            state_dict = checkpoint["model_state_dict"]  # Extract the actual state dict
         else:
-            # start = time.time()
+            state_dict = checkpoint  # Direct state_dict case
+            print(f"no model state dict")
 
-            img_tensor = test_generate(hazy, vertical, args.cropping, MyEnsembleNet, device)
-        
-            # end = time.time()
-            # time_list.append((end - start))
-            img_list.append(img_tensor)
+        # Remove "module." prefix if it exists
+        new_state_dict = OrderedDict()
+        for k, v in state_dict.items():
+            new_key = k.replace("module.", "") if k.startswith("module.") else k
+            new_state_dict[new_key] = v
 
+        # Load state dict into model
+        MyEnsembleNet.load_state_dict(new_state_dict)
+        ########## ---- End of CH code ---- ##########
 
-            ######## Code by Caitlin #################
-            # print(f"find name: {val_dataset[batch_idx]}")
-            name = str(batch_idx + 41)  # os.listdir(os.path.join(args.data_dir, args.hazy_data))[batch_idx]
-            imwrite(img_list[batch_idx], os.path.join(output_dir, f"{name}.png"))
+        # Now wrap in DataParallel
+        MyEnsembleNet = torch.nn.DataParallel(MyEnsembleNet, device_ids=device_ids)
+        MyEnsembleNet = MyEnsembleNet.to(device)
+        # --- Load the network weight --- #
+        # MyEnsembleNet.load_state_dict(torch.load(args.ckpt_path))              
 
-            ##########################################
+    else: 
+        ################## Code by Caitlin to get around parallel GPU requirement.
+        # Load checkpoint
+        checkpoint = torch.load(weight_file, map_location=device)  # Ensure checkpoint is loaded on correct device
 
-    # time_cost = float(sum(time_list) / len(time_list))
-    # print('running time per image: ', time_cost)
+        if "model_state_dict" in checkpoint:
+            state_dict = checkpoint["model_state_dict"]  # Extract the actual state dict
+        else:
+            state_dict = checkpoint  # Direct state_dict case
+
+        # Remove "module." prefix if it exists
+        new_state_dict = OrderedDict()
+        for k, v in state_dict.items():
+            new_key = k.replace("module.", "") if k.startswith("module.") else k
+            new_state_dict[new_key] = v
+
+        # Load state dict into model
+        MyEnsembleNet.load_state_dict(new_state_dict)
+        MyEnsembleNet = MyEnsembleNet.to(device)
+        ##################
+
+    # --- Strat testing --- #
+    with torch.no_grad():
+        img_list = []
+        time_list = []
+
+        imsave_dir = output_dir
+        if not os.path.exists(imsave_dir):
+            os.makedirs(imsave_dir)
+            print("Created output directory")
+            
+        MyEnsembleNet.eval()
+        for batch_idx, (hazy, vertical, name) in enumerate(tqdm(val_loader)):   
+        #for batch_idx, (hazy, vertical, hazy_1, hazy_2, hazy_3,hazy_4, hazy_5, hazy_6) in enumerate(val_loader):
+            # print(len(val_loader))
+
+            # for OHAZE
+            if args.hazy_data == "OHAZE_test":
+                index = vertical[0].to('cpu')
+                ori_shape = vertical[1]
+                img_list = []
                 
-# writer.close()
+                for input in hazy:
+                    input = input.to(device)
+                    img_tensor = MyEnsembleNet(input)
+                    # img_list.append(img_tensor.cpu())
+                    img_list.append(img_tensor) # ch add
+
+                final_image = image_stick_ohaze(img_list, index, ori_shape)
+                assert final_image.shape[-1] == ori_shape[-1]
+                # final_image.shape  ori_shape
+
+                continue
+
+            # Below for NTIRE2023
+            if args.cropping == 4:
+                img_list = []
+                
+                for input in hazy:
+                    input = input.to(device)
+                    #print(input.size())
+                    start = time.time()
+                    img_tensor = MyEnsembleNet(input)
+                    end = time.time()
+                    time_list.append((end - start))
+                    img_list.append(img_tensor.cpu())
+            
+                final_image = image_stick(img_list, vertical)
+                one_t = torch.ones_like(final_image[:,0,:,:])
+                one_t = one_t[:, None, :, :]
+                img_t = torch.cat((final_image, one_t) , 1)
+                
+                ######## Code by Caitlin #################
+                # name = os.listdir(os.path.join(args.data_dir, args.hazy_data))[batch_idx]
+                # imwrite(img_t, os.path.join(output_dir, f"{name}.png"), range=(0, 1))
+                imwrite(img_list[batch_idx], os.path.join(output_dir, str(name[0])))
+                ##########################################
+
+            else:
+                # start = time.time()
+
+                img_tensor = test_generate(hazy, vertical, args.cropping, MyEnsembleNet, device)
+            
+                # end = time.time()
+                # time_list.append((end - start))
+                img_list.append(img_tensor)
+
+
+                ######## Code by Caitlin #################
+                # print(f"find name: {val_dataset[batch_idx]}")
+                # name = str(batch_idx + 41)  # os.listdir(os.path.join(args.data_dir, args.hazy_data))[batch_idx]
+                imwrite(img_list[batch_idx], os.path.join(output_dir, str(name[0])))
+
+                ##########################################
+
+        # time_cost = float(sum(time_list) / len(time_list))
+        # print('running time per image: ', time_cost)
+        #                  
+    # writer.close()
 
 
 

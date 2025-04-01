@@ -15,7 +15,7 @@ COPY . .
 # ENTRYPOINT ["bash", "-c"]
 ENTRYPOINT ["python"]
 
-CMD ["python", "test.py", "--imagenet_model", "SwinTransformerV2", "--cfg", "configs/swinv2/swinv2_base_patch4_window8_256.yaml", "--model_save_dir", "./output_result", "--ckpt_path", "./weights/best.pkl", "--hazy_data", "NHNH2", "--cropping", "6"]
+CMD ["python", "test.py", "--imagenet_model", "SwinTransformerV2", "--cfg", "configs/swinv2/swinv2_base_patch4_window8_256.yaml", "--model_save_dir", "./output_result", "--hazy_data", "NHNH2", "--cropping", "1"]
 
 
 
@@ -25,12 +25,12 @@ CMD ["python", "test.py", "--imagenet_model", "SwinTransformerV2", "--cfg", "con
 # # docker system prune ## run every so often to clear out system
 
 # # TO RUN IMAGE FOR TESTING
-hare run --rm --gpus '"device=0,1,2,3,4,5,6"' --shm-size=128g \
---mount type=bind,source=/mnt/faster0/ceh94/ITBdehaze/weights,target=/ITBdehaze/weights \
---mount type=bind,source=/mnt/faster0/ceh94/ITBdehaze/output_result,target=/ITBdehaze/output_result \
---mount type=bind,source=/mnt/faster0/ceh94/ITBdehaze/input_data,target=/ITBdehaze/input_data \
-ceh94/itb \
-test.py --imagenet_model SwinTransformerV2 --cfg configs/swinv2/swinv2_base_patch4_window8_256.yaml --model_save_dir ./output_result --ckpt_path ./weights/best.pkl --hazy_data NHNH2 --cropping 1
+# hare run --rm --gpus '"device=5,6"' --shm-size=128g \
+# --mount type=bind,source=/mnt/faster0/ceh94/ITBdehaze/weights,target=/ITBdehaze/weights \
+# --mount type=bind,source=/mnt/faster0/ceh94/ITBdehaze/output_result,target=/ITBdehaze/output_result \
+# --mount type=bind,source=/mnt/faster0/ceh94/ITBdehaze/input_data,target=/ITBdehaze/input_data \
+# ceh94/itb \
+# test.py --imagenet_model SwinTransformerV2 --cfg configs/swinv2/swinv2_base_patch4_window8_256.yaml --model_save_dir ./output_result --hazy_data NHNH2 --cropping 1
 
 # # TO RUN IMAGE FOR TRAINING
 # hare run --rm --gpus '"device=0,1"' --shm-size=128g \
