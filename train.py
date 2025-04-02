@@ -22,9 +22,18 @@ from utils_test import to_psnr, to_ssim_skimage, cropping, test_generate
 from pytorch_msssim import msssim
 from config import get_config
 from models import build_model
-from lr_scheduler import build_scheduler
-from optimizer import build_optimizer
+# from lr_scheduler import build_scheduler
+# from optimizer import build_optimizer
 from utils_test import image_stick ## CH add
+from tqdm import tqdm ## CH add
+import datetime ## CH add
+
+######### ch added
+save_prefix = "NHNH2RB10" ## SET VARIABLE WHEN TRAINING DATASET CHANGES
+script_start_time = datetime.datetime.now()
+print(f"--- Start time: {script_start_time.strftime('%Y-%m-%d_%H-%M-%S')} ---")
+torch.cuda.empty_cache()
+###########################
 
 # --- Parse hyper-parameters train --- #
 parser = argparse.ArgumentParser(description='RCAN-Dehaze-teacher')
@@ -91,7 +100,6 @@ parser.add_argument('--optim', type=str,
 torch.cuda.empty_cache() ## ch add
 args = parser.parse_args()
 
-
 # --- train --- #
 learning_rate = args.learning_rate
 train_batch_size = args.train_batch_size
@@ -144,14 +152,14 @@ scheduler_D = torch.optim.lr_scheduler.MultiStepLR(D_optim, milestones=[5000,700
 
 # --- Load training data --- #
 dataset = dehaze_train_dataset(train_dataset)
-train_loader = DataLoader(dataset=dataset, batch_size=train_batch_size, shuffle=True)
+train_loader = DataLoader(dataset=dataset, batch_size=train_batch_size, shuffle=True, num_workers=4, pin_memory=True) ## TRY ADJUST NEXT
 
 # --- Load testing data --- #
 test_dataset = dehaze_test_dataset(test_dataset, crop_method=args.cropping)
-test_loader = DataLoader(dataset=test_dataset, batch_size=test_batch_size, shuffle=False, num_workers=0)
+test_loader = DataLoader(dataset=test_dataset, batch_size=test_batch_size, shuffle=False, num_workers=4, pin_memory=True)
 
 val_dataset = dehaze_val_dataset(val_dataset, crop_method=args.cropping)
-val_loader = DataLoader(dataset=val_dataset, batch_size=1, shuffle=False, num_workers=0)
+val_loader = DataLoader(dataset=val_dataset, batch_size=1, shuffle=False, num_workers=4, pin_memory=True)
 
 # --- Multi-GPU --- #
 MyEnsembleNet = MyEnsembleNet.to(device)
@@ -169,7 +177,7 @@ writer = SummaryWriter(os.path.join(args.model_save_dir, 'tensorboard'))
 
 # --- Define the perceptual loss network --- #
 vgg_model = vgg16(pretrained=True).features[:16].to(device) ## CH change Moved VGG to device earlier
-print("VGG loaded")
+print("VGG loaded", flush=True)
 # vgg_model.load_state_dict(torch.load(os.path.join(args.vgg_model , 'vgg16.pth')))
 # vgg_model = vgg_model.features[:16].to(device)
 for param in vgg_model.parameters():
@@ -192,18 +200,18 @@ print("Strat training")
 iteration = 0
 best = 0
 msg_list = []
+all_times = []
 for epoch in range(train_epoch):
     start_time = time.time()
     
     MyEnsembleNet.train()
     DNet.train()
-    print(f"Epoch: {epoch}")
+    # print(f"Epoch: {epoch}", flush=True)
     for batch_idx, (hazy, clean) in enumerate(train_loader):
-        # print(batch_idx)
         iteration +=1
         hazy = hazy.to(device)
         clean = clean.to(device)
-        output= MyEnsembleNet(hazy)
+        output = MyEnsembleNet(hazy)
 
         torch.cuda.empty_cache() ## CH change: free up memory after each batch
 
@@ -223,119 +231,108 @@ for epoch in range(train_epoch):
         D_optim.step()
         G_optimizer.step()
 
-        writer.add_scalars('training', {'training total loss': total_loss.item()
-                                        }, iteration)
-        writer.add_scalars('training_img', {'img loss_l1': smooth_loss_l1.item(),
-                                                'perceptual': perceptual_loss.item(),
-                                            'msssim':msssim_loss_.item()
+        ## Removed due to speed issues: CH add
+        # writer.add_scalars('training', {'training total loss': total_loss.item()
+        #                                 }, iteration)
+        # writer.add_scalars('training_img', {'img loss_l1': smooth_loss_l1.item(),
+        #                                         'perceptual': perceptual_loss.item(),
+        #                                     'msssim':msssim_loss_.item()
                                             
-                                               }, iteration)
-        writer.add_scalars('GAN_training', {
-            'd_loss':D_loss.item(),
-            'd_score':real_out.item(),
-            'g_score':fake_out.item()
-            }, iteration
-            )
-    scheduler_G.step(epoch=epoch) # CH change: moved optimizer.step after lr_scheduler.step as needed for pytorch>1.1.0
+        #                                        }, iteration)
+        # writer.add_scalars('GAN_training', {
+        #     'd_loss':D_loss.item(),
+        #     'd_score':real_out.item(),
+        #     'g_score':fake_out.item()
+        #     }, iteration
+        #     )
+    # epochend = time.time() - start_time
+    # all_times.append(epochend)
+    # print(f"Epoch took {epochend}")
+    
+    scheduler_G.step(epoch = epoch) # CH change: moved optimizer.step after lr_scheduler.step as needed for pytorch>1.1.0
     scheduler_D.step() # CH change: moved optimizer.step after lr_scheduler.step as needed for pytorch>1.1.0
-
+    
     if epoch % 5 == 0:   
-        print('we are testing on epoch: ' + str(epoch)) 
+        print(f"we are testing on epoch {str(epoch)}", flush=True)
+    # if epoch % 10 == 0: 
+    #     print(f"----- av {sum(all_times)/len(all_times)} ------", flush=True)
+    #     all_times = []
 
-    if epoch % 25 == 0:   
-        # print('we are testing on epoch: ' + str(epoch))  
-        with torch.no_grad():
-            psnr_list = []
-            ssim_list = []
-            recon_psnr_list = []
-            recon_ssim_list = []
+    ## Removed due to speed issues: CH add
+    # if epoch % 25 == 0:   
+    #     # print('we are testing on epoch: ' + str(epoch))  
+    #     with torch.no_grad():
+    #         psnr_list = []
+    #         ssim_list = []
+    #         recon_psnr_list = []
+    #         recon_ssim_list = []
+    #         MyEnsembleNet.eval()
 
-            MyEnsembleNet.eval()
-            # for batch_idx, (_, _, hazy, clean) in enumerate(test_loader):
-            for batch_idx, (hazy, vertical, clean) in enumerate(test_loader):
-                ### CH add               
-                if args.cropping == 4:
-                    img_list = []
-                    for input in hazy:
-                        input = input.to(device)
-                        #print(input.size())
-                        img_tensor = MyEnsembleNet(input)
-                        img_list.append(img_tensor.cpu())
+    #         # for batch_idx, (_, _, hazy, clean) in enumerate(test_loader):
+    #         for batch_idx, (hazy, vertical, clean) in enumerate(test_loader):
+    #             ### CH add
+    #             print("cc", flush=True)               
+    #             if args.cropping == 4:
+    #                 img_list = []
+    #                 for input in hazy:
+    #                     input = input.to(device)
+    #                     #print(input.size())
+    #                     img_tensor = MyEnsembleNet(input)
+    #                     img_list.append(img_tensor.cpu())
                 
-                    final_hazy_image = image_stick(img_list, vertical)
-                    one_t = torch.ones_like(final_hazy_image[:,0,:,:])
-                    one_t = one_t[:, None, :, :]
-                    hazy_t = torch.cat((final_hazy_image, one_t) , 1)
-                    img_tensor = hazy_t
-                elif args.cropping == 1:
-                    img_list = []
-                    for input in hazy:
-                        input = input.to(device)
-                        print(input.size())
-                        img_tensor = MyEnsembleNet(input)
-                        img_list.append(img_tensor.cpu())
-                
-                    final_hazy_image = img_list[0]
-                    one_t = torch.ones_like(final_hazy_image[:,0,:,:])
-                    one_t = one_t[:, None, :, :]
-                    hazy_t = torch.cat((final_hazy_image, one_t) , 1)
-                    img_tensor = hazy_t
-                else:
-                    img_list = []
-                    img_tensor = test_generate(hazy, vertical, args.cropping, MyEnsembleNet, device)
-                    img_list.append(img_tensor)
+    #                 final_hazy_image = image_stick(img_list, vertical)
+    #                 one_t = torch.ones_like(final_hazy_image[:,0,:,:])
+    #                 one_t = one_t[:, None, :, :]
+    #                 hazy_t = torch.cat((final_hazy_image, one_t) , 1)
+    #                 img_tensor = hazy_t
 
-                # if img_tensor.shape[0] == 4:
-                #     assert torch.equal(img_tensor[-1:, :, :], torch.ones(1, img_tensor.shape[1], img_tensor.shape[2])), "img_tensor[-1:, :, :] is not all ones"
-                #     img_tensor = img_tensor[:3, :, :]
-                # if clean.shape[0] == 4:
-                #     assert torch.equal(clean[-1:, :, :], torch.ones(1, clean.shape[1], clean.shape[2])), "hazy[-1:, :, :] is not all ones"
-                #     clean = clean[:3, :, :]
+    #             else:
+    #                 img_list = []
+    #                 s_time = time.time()
+    #                 img_tensor = test_generate(hazy, vertical, args.cropping, MyEnsembleNet, device)
+    #                 e_time = time.time()
+    #                 print(f"Time {e_time - s_time}", flush=True)
+    #                 img_list.append(img_tensor)
 
-                clean = clean.to(device)
-                img_tensor = img_tensor.to(device)
-                # hazy = hazy.to(device)
-                # img_tensor = MyEnsembleNet(hazy) ## ERROR occurs
+    #             clean = clean.to(device)
+    #             img_tensor = img_tensor.to(device)
 
-                if img_tensor.shape[1] == 4:  # Assuming shape format is (B, C, H, W)
-                    img_tensor = img_tensor[:, :3, :, :]
-                if clean.shape[1] == 4:
-                    clean = clean[:, :3, :, :]
-
-                psnr_list.extend(to_psnr(img_tensor, clean))
-                ssim_list.extend(to_ssim_skimage(img_tensor, clean))
-
-            avr_psnr = sum(psnr_list) / len(psnr_list)
-            avr_ssim = sum(ssim_list) / len(ssim_list)
-            print(epoch,'dehazed', avr_psnr, avr_ssim)
-            frame_debug = torch.cat((img_tensor,clean), dim =0)
-            writer.add_images('my_image_batch', frame_debug, epoch)
-            writer.add_scalars('testing', {'testing psnr':avr_psnr,
-                'testing ssim': avr_ssim
-                                    }, epoch)
-
-            msg = 'epoch'+ str(epoch) + ', avr_psnr:' + str(avr_psnr) + ', avr_ssim:' +str(avr_ssim)
-            msg_list.append(msg)
-
-            if (avr_psnr > best):
-                best = avr_psnr
-                torch.save(MyEnsembleNet.state_dict(), os.path.join(args.model_save_dir,'epoch'+ str(epoch) + '.pkl'))
-
-            ## --- ADD BACK IN LATER!! ---
+    #             if img_tensor.shape[1] == 4:  # Assuming shape format is (B, C, H, W)
+    #                 img_tensor = img_tensor[:, :3, :, :]
+    #             if clean.shape[1] == 4:
+    #                 clean = clean[:, :3, :, :]
+    #             psnr_list.extend(to_psnr(img_tensor, clean))
+    #             ssim_list.extend(to_ssim_skimage(img_tensor, clean))
+    #         avr_psnr = sum(psnr_list) / len(psnr_list)
+    #         avr_ssim = sum(ssim_list) / len(ssim_list)
+    #         print(epoch,'dehazed', avr_psnr, avr_ssim)
+    #         frame_debug = torch.cat((img_tensor,clean), dim =0)
+    #         writer.add_images('my_image_batch', frame_debug, epoch)
+    #         writer.add_scalars('testing', {'testing psnr':avr_psnr,
+    #             'testing ssim': avr_ssim
+    #                                 }, epoch)
+    #         msg = 'epoch'+ str(epoch) + ', avr_psnr:' + str(avr_psnr) + ', avr_ssim:' +str(avr_ssim)
+    #         msg_list.append(msg)
+    #         if (avr_psnr > best):
+    #             best = avr_psnr
+    #             # torch.save(MyEnsembleNet.state_dict(), os.path.join(args.model_save_dir,'epoch'+ str(epoch) + '.pkl'))
+    #             torch.save(MyEnsembleNet.state_dict(), os.path.join(args.model_save_dir, f"{script_start_time.strftime('%Y-%m-%d_%H-%M-%S')}_{save_prefix}_epoch{epoch:05d}.pkl")) ## ch change
+            # # --- ADD BACK IN LATER!! ---
             # if (epoch > 2000 and epoch <= 8000):
             #     checkpoint = {
             #         'state_dict': MyEnsembleNet.state_dict(),
             #         'optimizer': G_optimizer.state_dict()
             #     }
             #     torch.save(checkpoint, os.path.join(args.model_save_dir,'epoch'+ str(epoch) + '.pkl'))
-            
-            if epoch % 1000 == 0:
-                checkpoint = {
-                    'state_dict': MyEnsembleNet.state_dict(),
-                    'optimizer': G_optimizer.state_dict()
-                }
-                torch.save(checkpoint, os.path.join(args.model_save_dir,'epoch'+ str(epoch) + '.pkl'))
-
+    
+    ## ch add
+    if epoch % 1000 == 0:
+        checkpoint = {
+            'state_dict': MyEnsembleNet.state_dict(),
+            'optimizer': G_optimizer.state_dict()
+        }
+        # torch.save(checkpoint, os.path.join(args.model_save_dir,'epoch'+ str(epoch) + '.pkl'))
+        torch.save(checkpoint, os.path.join(args.model_save_dir, f"{script_start_time.strftime('%Y-%m-%d_%H-%M-%S')}_{save_prefix}_epoch{epoch:05d}.pkl"))
         
         # generation while testing
         if args.generate:
@@ -349,15 +346,19 @@ for epoch in range(train_epoch):
                 os.makedirs(imsave_dir)
 
             # Validation
-            for batch_idx, (hazy, vertical) in enumerate(val_loader):   
+            for batch_idx, (hazy, vertical, name) in enumerate(tqdm(val_loader)):   
                 img_tensor = test_generate(hazy, vertical, args.cropping, MyEnsembleNet, device) 
                 img_list.append(img_tensor)
-                imwrite(img_list[batch_idx], os.path.join(imsave_dir, str(batch_idx + 41)+'.png'))
+                # imwrite(img_list[batch_idx], os.path.join(imsave_dir, str(batch_idx + 41)+'.png'))
+                imwrite(img_list[batch_idx], os.path.join(output_dir, str(name[0])))
 
+## Removed due to speed issues: CH add
+# file = open('test_info.txt','w')
+# for item in msg_list:
+# 	file.write(item+"\n")
+# file.close()              
+# writer.close()
 
-file = open('test_info.txt','w')
-for item in msg_list:
-	file.write(item+"\n")
-file.close()              
-
-writer.close()
+## CH add
+end_time = datetime.datetime.now()
+print(f"Start time{script_start_time.strftime('%Y-%m-%d_%H-%M-%S')}, End time {end_time.strftime('%Y-%m-%d_%H-%M-%S')}, Total duration: {end_time - script_start_time}")

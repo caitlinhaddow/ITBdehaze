@@ -153,16 +153,12 @@ def test_generate(hazy, vertical, cropping, MyEnsembleNet, device):
     # Pytorch img tensor = [batch size, number of channels, height, width]
 
     ## CH add
-    if len(hazy) == 1 and hazy[0].shape[2] == 2048:
-        # CHECK FOR SMALL IMAGES
-        if cropping == 1:
-            assert len(hazy) == 1, "cropping number not match len(hazy)"
-            hazy = hazy[0]
-            hazy = hazy.to(device)
-            img_tensor = MyEnsembleNet(hazy)
-            img_tensor = img_tensor[:, :, 424:1624, 224:1824]
-        else:
-            raise ValueError("Unexpected crop size")
+    if cropping == 1 and len(hazy) == 1 and hazy[0].shape[2] == 2048:
+            hazy_tensor = hazy[0].to(device, non_blocking=True)
+            with torch.no_grad():
+                img_tensor = MyEnsembleNet(hazy_tensor)
+            return torch.cat((img_tensor[:, :, 424:1624, 224:1824], torch.ones_like(img_tensor[:, :1, 424:1624, 224:1824])), 1)       
+        
     #######
     else:
         #################### This part is for no crop, 1*6144*6144 #####################
