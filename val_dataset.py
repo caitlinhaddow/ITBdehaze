@@ -22,7 +22,7 @@ class dehaze_val_dataset(Dataset):
         hazy = Image.open(self.root_hazy +'/'+ self.list_test[index])
         hazy = self.transform(hazy)
 
-        print(f"---- image shape: {hazy.shape} ----")
+        # print(f"---- image shape: {hazy.shape} ----")
 
         if hazy.shape[0] == 4:
             assert torch.equal(hazy[-1:, :, :], torch.ones(1, hazy.shape[1], hazy.shape[2])), "hazy[-1:, :, :] is not all ones"
