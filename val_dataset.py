@@ -2,7 +2,7 @@ from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms
 import os
-# import cv2
+# import cv2  ## CH Dissertation: not needed
 import torch
 from utils_test import cropping, cropping_ohaze
 
@@ -30,6 +30,7 @@ class dehaze_val_dataset(Dataset):
 
         hazy, vertical = cropping(hazy, self.crop_method)
 
+        ## CH Dissertation: processing of single 1200x1600 tile
         name = self.list_test[index]
         return hazy, vertical, name
 

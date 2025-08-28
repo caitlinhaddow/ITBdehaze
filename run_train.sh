@@ -1,7 +1,10 @@
 #!/bin/bash
 
-# BEFORE RUNNING: give execution permissions with chmod +x run_train.sh
-# Then run with ./run_train.sh
+## CH Dissertation: New File added
+## Runs code needed to train the model. Assumes code is on Hex in faster0/ceh94/ITBdehaze - if not needs replacing.
+## Datasets to batch traom should be listed after the appropriate parameter as strings separated by spaces only.
+## BEFORE RUNNING: give execution permissions with chmod +x run_train.sh
+## Then run with ./run_train.sh
 
 set -e  # Exit on error
 # set -x  # Echo commands for debugging
@@ -10,7 +13,7 @@ set -e  # Exit on error
 hare build -t ceh94/itb .
 
 # START THE CONTAINER and RUN TRAINING CODE
-hare run --rm --gpus '"device=1,2"' --shm-size=128g \
+hare run --rm --gpus '"device=5,6"' --shm-size=128g \
   --mount type=bind,source=/mnt/faster0/ceh94/ITBdehaze/weights,target=/ITBdehaze/weights \
   --mount type=bind,source=/mnt/faster0/ceh94/ITBdehaze/output_result,target=/ITBdehaze/output_result \
   --mount type=bind,source=/mnt/faster0/ceh94/ITBdehaze/input_training_data,target=/ITBdehaze/input_training_data \
@@ -21,25 +24,10 @@ hare run --rm --gpus '"device=1,2"' --shm-size=128g \
   --cfg configs/swinv2/swinv2_base_patch4_window8_256.yaml \
   -train_batch_size 8 \
   --model_save_dir check_points \
-  -train_epoch 0005 \
+  -train_epoch 8005 \
   --cropping 1 \
-  --datasets "NHNH2" \
-  --generate  # Run validation during training
+  --datasets "fireglow2NHNH2RBm10" \
 
-
-
-## DATASETS: "NH" "NH2" "SMOKE_1600x1200_test"
-
-# # RUN TRAINING CODE
-# hare exec "$CONTAINER_ID" python train.py \
-#   --imagenet_model SwinTransformerV2 \
-#   --cfg configs/swinv2/swinv2_base_patch4_window8_256.yaml \
-#   -train_batch_size 8 \
-#   --model_save_dir check_points \
-#   -train_epoch 0005 \
-#   --cropping 1 \
-#   --generate false
-#   --datasets "NH2" \
 
 
 

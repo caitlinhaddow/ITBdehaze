@@ -1,3 +1,6 @@
+## CH Dissertation: New File added
+## Not the primary method used for creating the code environment
+
 name: venv_ITBDehaze
 channels:
   - pytorch

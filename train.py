@@ -1,3 +1,6 @@
+## CH Dissertation: No longer used imports and hyper-parameters are commented out for efficiency, but left in the code for awareness and easier future adaptation for high resolution images
+## Cropping and tiling code is removed
+
 # External imports
 import argparse
 import os
@@ -8,8 +11,8 @@ from torchvision.utils import save_image as imwrite
 from tensorboardX import SummaryWriter
 import torch.nn.functional as F
 from timm.scheduler.cosine_lr import CosineLRScheduler
-from tqdm import tqdm ## CH add
-import datetime ## CH add
+from tqdm import tqdm ## CH Dissertation: added loading bars
+import datetime ## CH Dissertation: for informative file names
 
 # External model imports
 from torchvision.models import vgg16
@@ -26,16 +29,8 @@ from models import build_model
 from perceptual import LossNetwork
 # from lr_scheduler import build_scheduler
 # from optimizer import build_optimizer
-from utils_test import image_stick ## CH add
+from utils_test import image_stick ## CH Dissertation: required for single tile
 
-
-# BRANCH 1: Transfer Learning Branch
-#   Encoder = Swin Transformer V2, pretrained on ImageNet
-#   Decoder and Skip connections
-# BRANCH 2: Data Fitting Branch
-#   RCAN (taken from Image super-resolution using very deep residual channel attention networks)
-# AGGREGATE RESULTS
-#   Fusion tail
 
 # --- Parse hyper-parameters train --- #
 parser = argparse.ArgumentParser(description='RCAN-Dehaze-teacher')
@@ -46,7 +41,7 @@ parser.add_argument('--train_dataset', type=str, default='')
 parser.add_argument('--data_dir', type=str, default='./input_training_data')
 parser.add_argument('--model_save_dir', type=str, default='./check_points')
 parser.add_argument('--log_dir', type=str, default=None)
-parser.add_argument('--datasets', nargs='+', required=True) ## ch change
+parser.add_argument('--datasets', nargs='+', required=True) ## CH Dissertation: for batch training on different datasets
 
 # --- Parse hyper-parameters test --- #
 parser.add_argument('--test_dataset', type=str, default='')
@@ -104,11 +99,12 @@ parser.add_argument('--optim', type=str,
 args = parser.parse_args()
 
 for dataset_name in args.datasets:
-    ######### ch added
+
+    ## CH Dissertation: information printed during run
     script_start_time = datetime.datetime.now()
     print(f"--- Start time: {script_start_time.strftime('%Y-%m-%d_%H-%M-%S')} ---")
-    torch.cuda.empty_cache()
-    ###########################
+    torch.cuda.empty_cache() ## CH Dissertation: memory management
+
     input_dir = os.path.join(args.data_dir, dataset_name)
 
     # --- train --- #
@@ -126,12 +122,12 @@ for dataset_name in args.datasets:
     # --- output picture and check point --- #
     if not os.path.exists(args.model_save_dir):
         os.makedirs(args.model_save_dir)
-    ## ch add #####
+    
+    ## CH Dissertation: informative filenames and creation of missing directories
     checkpoint_dir = f"ITBDehaze_{dataset_name}_{script_start_time.strftime('%Y-%m-%d_%H-%M-%S')}"
     output_dir = os.path.join(args.model_save_dir, checkpoint_dir)
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    ###############
 
     # --- Gpu device --- #
     device_ids = [Id for Id in range(torch.cuda.device_count())]
@@ -168,14 +164,14 @@ for dataset_name in args.datasets:
 
     # --- Load training data --- #
     dataset = dehaze_train_dataset(train_dataset)
-    train_loader = DataLoader(dataset=dataset, batch_size=train_batch_size, shuffle=True, num_workers=4, pin_memory=True) ## TRY ADJUST NEXT
+    train_loader = DataLoader(dataset=dataset, batch_size=train_batch_size, shuffle=True, num_workers=4, pin_memory=True) ## CH Dissertation: added num_workers and pin memory
 
     # --- Load testing data --- #
     test_dataset = dehaze_test_dataset(test_dataset, crop_method=args.cropping)
-    test_loader = DataLoader(dataset=test_dataset, batch_size=test_batch_size, shuffle=False, num_workers=4, pin_memory=True)
+    test_loader = DataLoader(dataset=test_dataset, batch_size=test_batch_size, shuffle=False, num_workers=4, pin_memory=True) ## CH Dissertation: added num_workers and pin memory
 
     val_dataset = dehaze_val_dataset(val_dataset, crop_method=args.cropping)
-    val_loader = DataLoader(dataset=val_dataset, batch_size=1, shuffle=False, num_workers=4, pin_memory=True)
+    val_loader = DataLoader(dataset=val_dataset, batch_size=1, shuffle=False, num_workers=4, pin_memory=True) ## CH Dissertation: added num_workers and pin memory
 
     # --- Multi-GPU --- #
     MyEnsembleNet = MyEnsembleNet.to(device)
@@ -188,28 +184,28 @@ for dataset_name in args.datasets:
         # check model location
 
     # DNet = DNet.to(device)
-    DNet = torch.nn.DataParallel(DNet, device_ids=device_ids).to(device) ## ch edit
+    DNet = torch.nn.DataParallel(DNet, device_ids=device_ids).to(device) ## CH Dissertation: memory management
     writer = SummaryWriter(os.path.join(args.model_save_dir, 'tensorboard'))
 
     # --- Define the perceptual loss network --- #
-    vgg_model = vgg16(pretrained=True).features[:16].to(device) ## CH change Moved VGG to device earlier
+    vgg_model = vgg16(pretrained=True).features[:16].to(device) ## CH Dissertation: memory management. Moved to device earlier
     print("VGG loaded", flush=True)
     # vgg_model.load_state_dict(torch.load(os.path.join(args.vgg_model , 'vgg16.pth')))
     # vgg_model = vgg_model.features[:16].to(device)
     for param in vgg_model.parameters():
         param.requires_grad = False
 
-    loss_network = LossNetwork(vgg_model).to(device) ## CH change: moved to same 
+    loss_network = LossNetwork(vgg_model).to(device)  ## CH Dissertation: memory management, moved to same location
     loss_network.eval()
     msssim_loss = msssim
 
     #--- Load the network weight for finetuning--- #
-    if args.finetune:
-        try:
-            MyEnsembleNet.load_state_dict(torch.load('epoch100000.pkl'))  # load finetune model ### CHANGE PARAMETER
-            print('--- weight loaded ---')
-        except:
-            print('--- no weight loaded ---')
+    # if args.finetune:
+    #     try:
+    #         MyEnsembleNet.load_state_dict(torch.load('epoch100000.pkl'))  # load finetune model ### CHANGE PARAMETER
+    #         print('--- weight loaded ---')
+    #     except:
+    #         print('--- no weight loaded ---')
 
     # --- Strat training --- #
     print("Strat training")
@@ -247,7 +243,7 @@ for dataset_name in args.datasets:
             D_optim.step()
             G_optimizer.step()
 
-            ## Removed due to speed issues: CH add
+            ## CH Dissertation: Removed due to speed issues:
             # writer.add_scalars('training', {'training total loss': total_loss.item()
             #                                 }, iteration)
             # writer.add_scalars('training_img', {'img loss_l1': smooth_loss_l1.item(),
@@ -265,16 +261,18 @@ for dataset_name in args.datasets:
         # all_times.append(epochend)
         # print(f"Epoch took {epochend}")
         
-        scheduler_G.step(epoch = epoch) # CH change: moved optimizer.step after lr_scheduler.step as needed for pytorch>1.1.0
-        scheduler_D.step() # CH change: moved optimizer.step after lr_scheduler.step as needed for pytorch>1.1.0
+        ## CH Dissertation: moved optimizer.step after lr_scheduler.step as needed for pytorch>1.1.0:
+        scheduler_G.step(epoch = epoch)  
+        scheduler_D.step()
         
+        ## CH Dissertation: information for user
         if epoch % 5 == 0:   
             print(f"we are testing on epoch {str(epoch)}", flush=True)
         # if epoch % 10 == 0: 
         #     print(f"----- av {sum(all_times)/len(all_times)} ------", flush=True)
         #     all_times = []
 
-        ## Removed due to speed issues: CH add
+        ## CH Dissertation: Removed due to speed issues:
         # if epoch % 25 == 0:   
         #     # print('we are testing on epoch: ' + str(epoch))  
         #     with torch.no_grad():
@@ -341,14 +339,14 @@ for dataset_name in args.datasets:
                 #     }
                 #     torch.save(checkpoint, os.path.join(output_dir,'epoch'+ str(epoch) + '.pkl'))
         
-        ## ch add
+        ## CH Dissertation: saving at intervals to allow testing on unseen data
         if epoch % 1000 == 0:
             checkpoint = {
                 'state_dict': MyEnsembleNet.state_dict(),
                 'optimizer': G_optimizer.state_dict()
             }
             # torch.save(checkpoint, os.path.join(args.model_save_dir,'epoch'+ str(epoch) + '.pkl'))
-            torch.save(checkpoint, os.path.join(output_dir, f"{script_start_time.strftime('%Y-%m-%d_%H-%M-%S')}_{dataset_name}_epoch{epoch:05d}.pkl"))
+            torch.save(checkpoint, os.path.join(output_dir, f"{script_start_time.strftime('%Y-%m-%d_%H-%M-%S')}_{dataset_name}_epoch{epoch:05d}.pkl")) ## CH Dissertation: informative filenames
             
             # generation while testing
             if args.generate:
@@ -375,6 +373,6 @@ for dataset_name in args.datasets:
     # file.close()              
     # writer.close()
 
-    ## CH add
+    ## CH Dissertation: information for user
     end_time = datetime.datetime.now()
     print(f"Start time{script_start_time.strftime('%Y-%m-%d_%H-%M-%S')}, End time {end_time.strftime('%Y-%m-%d_%H-%M-%S')}, Total duration: {end_time - script_start_time}")

@@ -5,6 +5,8 @@
 # Written by Ze Liu
 # --------------------------------------------------------
 
+## CH Dissertation: Improvement to efficiency. Imports are moved into if statements calling them so that large models are only imported if used. Most of these models were only for ablation studies in the original paper
+
 # from .swin_transformer import SwinTransformer
 # from .swin_transformer_v2 import SwinTransformerV2
 # from .swin_transformer_moe import SwinTransformerMoE

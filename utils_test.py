@@ -1,8 +1,8 @@
 import torch
 import torch.nn.functional as F
 from math import log10
-# import cv2
-# import numpy as np
+# import cv2  ## CH Dissertation: not needed
+# import numpy as np  ## CH Dissertation: not needed
 import torchvision
 from skimage.metrics import structural_similarity as ssim
 from torchvision import transforms
@@ -22,6 +22,8 @@ def to_ssim_skimage(dehaze, gt):
 
     dehaze_list_np = [dehaze_list[ind].permute(0, 2, 3, 1).data.cpu().numpy().squeeze() for ind in range(len(dehaze_list))]
     gt_list_np = [gt_list[ind].permute(0, 2, 3, 1).data.cpu().numpy().squeeze() for ind in range(len(dehaze_list))]
+
+    ## CH Dissertation: channel axis needed with package versions
     ssim_list = [ssim(dehaze_list_np[ind],  gt_list_np[ind], data_range=1, multichannel=True, channel_axis=2) for ind in range(len(dehaze_list))]
 
     return ssim_list
@@ -54,7 +56,7 @@ def predict(gridnet, test_data_loader):
 
 def cropping(hazy, crop_num):
     # assert hazy.shape[1]*hazy.shape[2] == 4000*6000
-    assert hazy.shape[1]*hazy.shape[2] == 4000*6000 or hazy.shape[1]*hazy.shape[2] == 1600*1200  ## CH add
+    assert hazy.shape[1]*hazy.shape[2] == 4000*6000 or hazy.shape[1]*hazy.shape[2] == 1600*1200  ## CH Dissertation: processing of single 1200x1600 tile
 
     num_row = hazy.shape[1] # img h
 
@@ -143,7 +145,7 @@ def cropping(hazy, crop_num):
                 hazy_6 = hazy[:, 2000-48:, 4000-48:]
             hazy = [hazy_1, hazy_2, hazy_3, hazy_4, hazy_5, hazy_6]
     else:
-        ## CH add
+        ## CH Dissertation: processing of single 1200x1600 tile
         raise ValueError("Input image is not either 4000x6000 or 1600x12000")
     return hazy, vertical
 
@@ -152,7 +154,7 @@ def test_generate(hazy, vertical, cropping, MyEnsembleNet, device):
     # Reconstruct the image from the pieces (after processing in separate pieces)
     # Pytorch img tensor = [batch size, number of channels, height, width]
 
-    ## CH add
+    ## CH Dissertation: processing of single 1200x1600 tile:
     if cropping == 1 and len(hazy) == 1 and hazy[0].shape[2] == 2048:
             hazy_tensor = hazy[0].to(device, non_blocking=True)
             with torch.no_grad():

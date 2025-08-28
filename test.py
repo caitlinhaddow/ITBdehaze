@@ -1,3 +1,6 @@
+## CH Dissertation: No longer used imports and hyper-parameters are commented out for efficiency, but left in the code for awareness and easier future adaptation for high resolution images
+## Cropping and tiling code is removed
+
 import torch
 import time
 import argparse
@@ -5,6 +8,7 @@ from model import fusion_refine #, Discriminator
 # from train_dataset import dehaze_train_dataset
 # from test_dataset import dehaze_test_dataset
 from val_dataset import dehaze_val_dataset, dehaze_val_dataset_ohaze
+from collections import OrderedDict
 from torch.utils.data import DataLoader
 import os
 # from torchvision.models import vgg16
@@ -15,13 +19,11 @@ from utils_test import test_generate, image_stick, image_stick_ohaze
 # from perceptual import LossNetwork
 from torchvision.utils import save_image as imwrite
 # from pytorch_msssim import msssim
-
 from config import get_config
 from models import build_model
-from collections import OrderedDict ########## ---- CH code ---- ##########
-from tqdm import tqdm ########## ---- CH code ---- ##########
+from tqdm import tqdm ## CH Dissertation: added loading bars
 
-# # --- Parse hyper-parameters train --- #
+# --- Parse hyper-parameters train --- #
 parser = argparse.ArgumentParser(description='RCAN-Dehaze-teacher')
 # parser.add_argument('-learning_rate', help='Set the learning rate', default=1e-4, type=float)
 # parser.add_argument('-train_batch_size', help='Set the training batch size', default=20, type=int)
@@ -41,8 +43,8 @@ parser.add_argument('--rcan_model', default='', type=str, help='load trained mod
 # parser.add_argument('--ckpt_path', default='./weights/best.pkl', type=str, help='path to model to be loaded')
 parser.add_argument('--hazy_data', default='', type=str, help='apply on test data or val data')
 parser.add_argument('--cropping', default='4', type=int, help='crop the 4k*6k image to # of patches for testing') # use 4 for >40GB memory, else use 6
-parser.add_argument('--datasets', nargs='+', default=['Test'])  ## ch add
-parser.add_argument('--weights', nargs='+', default=['dehaze.pkl'], help='List of weight file names as strings') ## ch add
+parser.add_argument('--datasets', nargs='+', default=['Test']) ## CH Dissertation: for batch processing multiple datasets
+parser.add_argument('--weights', nargs='+', default=['dehaze.pkl'], help='List of weight file names as strings') ## CH Dissertation: for batch processing multiple weights
 
 # --- SwinTransformer Parameter --- #
 parser.add_argument('--cfg', type=str, required=True, metavar="FILE", help='path to config file', )         # required
@@ -86,20 +88,9 @@ parser.add_argument('--fused_layernorm', action='store_true', help='Use fused la
 parser.add_argument('--optim', type=str,
                         help='overwrite optimizer if provided, can be adamw/sgd/fused_adam/fused_lamb.')
 
-########## ---- Start of CH code: Set Variables ---- ##########
-#### -------------------------- SET VARIABLES ----------------------------------------------
-# list_weight_files = ["./weights/best.pkl"]   ## original weights
-# list_weight_files = ["2025-04-02_10-41-25_NHNH2RB10_epoch01000.pkl", "2025-04-02_10-41-25_NHNH2RB10_epoch02000.pkl", "2025-04-02_10-41-25_NHNH2RB10_epoch03000.pkl", "2025-04-02_10-41-25_NHNH2RB10_epoch04000.pkl", "2025-04-02_10-41-25_NHNH2RB10_epoch05000.pkl", "2025-04-02_10-41-25_NHNH2RB10_epoch06000.pkl", "2025-04-02_10-41-25_NHNH2RB10_epoch07000.pkl", "2025-04-02_10-41-25_NHNH2RB10_epoch08000.pkl", "2025-04-03_13-39-05_NHNH2_epoch01000.pkl", "2025-04-03_13-39-05_NHNH2_epoch02000.pkl", "2025-04-03_13-39-05_NHNH2_epoch03000.pkl", "2025-04-03_13-39-05_NHNH2_epoch04000.pkl", "2025-04-03_13-39-05_NHNH2_epoch05000.pkl", "2025-04-03_13-39-05_NHNH2_epoch06000.pkl", "2025-04-03_13-39-05_NHNH2_epoch07000.pkl", "2025-04-03_13-39-05_NHNH2_epoch08000.pkl"]  ## SET VARIABLE
-# list_weight_files = ["2025-04-03_13-39-05_NHNH2_epoch08000.pkl"]  ## SET VARIABLE
+multiple_gpus = True  ## CH Dissertation: for adaptations to parallel processing
 
-# # test_datasets = ["Dense", "DNH_1600x1200", "SMOKE_1600x1200_test"]   ## SET VARIABLE
-# test_datasets = ["Dense"]   ## SET VARIABLE
-
-multiple_gpus = True  ## SET VARIABLE (Code by Caitlin)
-#### -------------------------- SET VARIABLES ----------------------------------------------
-########## ---- End of CH code ---- ##########
-
-## ch add
+## CH Dissertation: function to prevent errors from variation between weights files
 def normalize_state_dict(state_dict):
     new_state_dict = OrderedDict()
     for k, v in state_dict.items():
@@ -108,7 +99,7 @@ def normalize_state_dict(state_dict):
         new_state_dict[k] = v
     return new_state_dict
 
-## TEMP
+## CH Dissertation: function to prevent errors from variation between weights files
 def compare_state_dicts(model, checkpoint_path, output_file='state_dict_comparison.txt', device='cpu'):
     with open(output_file, 'w') as f:
         # Load checkpoint
@@ -154,15 +145,13 @@ def compare_state_dicts(model, checkpoint_path, output_file='state_dict_comparis
 
 args = parser.parse_args()
 
+ ## CH Dissertation: batch processing added
 for dataset in args.datasets:
     print(f"-- Testing on dataset {dataset}: --")
-    # test_data_dir = os.path.join(args.test_dir, dataset)  ## ch add  
-    list_weight_files = args.weights ## ch add
+    list_weight_files = args.weights
+    tested_on = dataset
 
-    # test_dataset = dehaze_test_dataset(test_data_dir)
-    # test_loader = DataLoader(dataset=test_dataset, batch_size=test_batch_size, shuffle=False, pin_memory=True, num_workers=2)
-    tested_on = dataset ## ch add
-
+    ## CH Dissertation: batch processing added
     for weight_file in list_weight_files:
         # --- output picture and check point --- #
         if not os.path.exists(args.model_save_dir):
@@ -172,13 +161,9 @@ for dataset in args.datasets:
         weight_name = os.path.splitext(os.path.basename(weight_file))[0]
         final_output_dir = os.path.join(output_dir, f"{tested_on}_{weight_name}")  # save each set of images in a new directory with the weight name
 
-        # weight_file = os.path.join("./weights", weight_file)  ## weights must be saved in weights directory
-
         val_dataset = os.path.join(args.data_dir, dataset)        
         predict_result = args.predict_result
         test_batch_size = args.test_batch_size
-
-        
 
         # --- Gpu device --- #
         device_ids = [Id for Id in range(torch.cuda.device_count())]
@@ -203,18 +188,16 @@ for dataset in args.datasets:
         else:
             val_dataset = dehaze_val_dataset(val_dataset, crop_method=args.cropping)
 
-        val_loader = DataLoader(dataset=val_dataset, batch_size=1, shuffle=False, num_workers=4, pin_memory=True)
+        val_loader = DataLoader(dataset=val_dataset, batch_size=1, shuffle=False, num_workers=4, pin_memory=True)  ## CH Dissertation: added num_workers and pin_memory
 
         ########## ---- Start of CH code: Run tests for multiples weights ---- ##########
 
-
+         ## CH Dissertation: batch processing, save each set of images in a new directory with the weight name
         weight_name = os.path.splitext(os.path.basename(weight_file))[0]
-        final_output_dir = os.path.join(output_dir, f"{tested_on}_{weight_name}")  # save each set of images in a new directory with the weight name
-
+        final_output_dir = os.path.join(output_dir, f"{tested_on}_{weight_name}")
         weight_file = os.path.join("./weights", weight_file)
-        ########## ---- End of CH code ---- ##########
 
-        # print(f"------- starting ---------")
+
         print(f"Testing {weight_file}:")
         comparison_log_path = os.path.join(output_dir, f'{weight_name}_state_dict_comparison.txt')
         compare_state_dicts(MyEnsembleNet, weight_file, output_file=comparison_log_path)
@@ -222,11 +205,9 @@ for dataset in args.datasets:
         if multiple_gpus: 
             # --- Multi-GPU --- #
             MyEnsembleNet = MyEnsembleNet.to(device)
-            
-            ########## ---- Start of CH code: To use given pkl file with parallel GPUs ---- ##########
-            # checkpoint = torch.load(args.ckpt_path, map_location=device)  # Ensure checkpoint is loaded on correct device
-            checkpoint = torch.load(weight_file, map_location=device)  # Ensure checkpoint is loaded on correct device
 
+            ## CH Dissertation: prevent errors from variation between weights files
+            checkpoint = torch.load(weight_file, map_location=device)  # Ensure checkpoint is loaded on correct device
             if "model_state_dict" in checkpoint:
                 print(f"found model state dict")
                 state_dict = checkpoint["model_state_dict"]  # Extract the actual state dict
@@ -236,12 +217,8 @@ for dataset in args.datasets:
             else:
                 state_dict = checkpoint  # Direct state_dict case
                 print(f"no model state dict")
-            
             new_state_dict = normalize_state_dict(state_dict)
             MyEnsembleNet.load_state_dict(new_state_dict)
-
-
-            # ########## ---- End of CH code ---- ##########
 
             # Now wrap in DataParallel
             MyEnsembleNet = torch.nn.DataParallel(MyEnsembleNet, device_ids=device_ids)
@@ -261,11 +238,11 @@ for dataset in args.datasets:
                 
             MyEnsembleNet.eval()
             for batch_idx, (hazy, vertical, name) in enumerate(tqdm(val_loader)):   
-            #for batch_idx, (hazy, vertical, hazy_1, hazy_2, hazy_3,hazy_4, hazy_5, hazy_6) in enumerate(val_loader):
+            # for batch_idx, (hazy, vertical, hazy_1, hazy_2, hazy_3, hazy_4, hazy_5, hazy_6) in enumerate(val_loader):
                 # print(len(val_loader))
 
-                if not os.path.exists(final_output_dir + '/'): ## ch add
-                    os.makedirs(final_output_dir + '/') ## ch add
+                if not os.path.exists(final_output_dir + '/'): ## CH Dissertation: added missing directories
+                    os.makedirs(final_output_dir + '/') ## CH Dissertation: added missing directories
 
                 # for OHAZE
                 if dataset == "OHAZE_test":
@@ -277,7 +254,7 @@ for dataset in args.datasets:
                         input = input.to(device)
                         img_tensor = MyEnsembleNet(input)
                         # img_list.append(img_tensor.cpu())
-                        img_list.append(img_tensor) # ch add
+                        img_list.append(img_tensor) ## CH Dissertation: memory managment
 
                     final_image = image_stick_ohaze(img_list, index, ori_shape)
                     assert final_image.shape[-1] == ori_shape[-1]
@@ -303,30 +280,22 @@ for dataset in args.datasets:
                     one_t = one_t[:, None, :, :]
                     img_t = torch.cat((final_image, one_t) , 1)
                     
-                    ######## Code by Caitlin #################
                     # name = os.listdir(os.path.join(args.data_dir, args.hazy_data))[batch_idx]
                     # imwrite(img_t, os.path.join(output_dir, f"{name}.png"), range=(0, 1))
-                    imwrite(img_list[batch_idx], os.path.join(final_output_dir, str(name[0])))
-                    ##########################################
+                    imwrite(img_list[batch_idx], os.path.join(final_output_dir, str(name[0]))) ## CH Dissertation: informative file names
 
                 else:
                     # start = time.time()
-
                     img_tensor = test_generate(hazy, vertical, args.cropping, MyEnsembleNet, device)
-                
                     # end = time.time()
                     # time_list.append((end - start))
                     img_list.append(img_tensor)
 
-
-                    ######## Code by Caitlin #################
                     # print(f"find name: {val_dataset[batch_idx]}")
                     # name = str(batch_idx + 41)  # os.listdir(os.path.join(args.data_dir, args.hazy_data))[batch_idx]
-                    imwrite(img_list[batch_idx], os.path.join(final_output_dir, str(name[0])))
-
-                    ##########################################
+                    imwrite(img_list[batch_idx], os.path.join(final_output_dir, str(name[0]))) ## CH Dissertation: informative file names
 
             # time_cost = float(sum(time_list) / len(time_list))
             # print('running time per image: ', time_cost)
-            #                  
+                         
         # writer.close()

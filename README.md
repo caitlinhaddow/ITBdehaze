@@ -1,17 +1,25 @@
-## My notes/Changes made to official implementation
+## Dissertation-Specific README
+
+### Run instructions
+
+
+
+### My notes/Changes made to official implementation
+* New files added: Dockerfile, run_test.py, run_train.py, itb_environment.yml, .dockerignore, .gitignore
+* Significant changes are made to train.py, test.py, utils_test.py, test_dataset.py
+* Minor changes are made to model.py, val_dataset.py, models/build.py, models/swin_transformer.py 
+
+* Original code required 6000x4000 images while were cropped and tiled. Changed to process a single 1200x1600 image.
+* Added a Dockerfile and bash scripts to for training and testing
+* Replaced checking metrics every 25th epoch with saving checkpoints every 1000th. Increasing training speed, and metrics were not relevant to testing on unseen data.
+* Added batch processing for testing and training (multiple datasets/weights)
+* Added pin_memory and num_works to data loaders to increase speed
+* Efficiency is improved by only importing models used (not those from original paper ablation studies)
 * Saved .pth file in main folder (git ignored)
 * Created checkpoints folder and saved best.pkl in (git ignored)
-* timm needs to be installed from conda-forge not pip
-* Added workaround code in test.py to allow running with a single GPU
-* Code currently requires images are 6000x4000
-* Only tried the test code so far, saves results to output_img
 
-Training
-* Paper trained with 2 12GB GPUs
 
-Testing
-* For best results needs 40GB of GPUs with cropping = 4, if less available use cropping = 6
-
+## Original README File:
 ##  A Data-Centric Solution to NonHomogeneous Dehazing via Vision Transformer
 
 This is the official PyTorch implementation of A Data-Centric Solution to NonHomogeneous Dehazing via Vision Transformer.  
